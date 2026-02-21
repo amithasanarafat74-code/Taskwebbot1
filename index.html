@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram Earn Bot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-primary: #0f0f1a;
+            --bg-secondary: #1a1a2e;
+            --accent: #00f2ea;
+            --accent-pink: #ff4d6d;
+            --accent-gold: #ffc107;
+            --text-main: #ffffff;
+            --text-muted: #a0a0b0;
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Noto Sans Bengali', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-main);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        /* Background Animation */
+        .bg-animation {
+            position: fixed;
+            inset: 0;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(0, 242, 234, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 77, 109, 0.1) 0%, transparent 50%);
+            z-index: -1;
+        }
+        
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+        }
+        
+        .glass-dark {
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(0, 242, 234, 0.2);
+            border-radius: 16px;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            font-family: inherit;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #00f2ea, #00d4aa);
+            color: #000;
+            box-shadow: 0 0 20px rgba(0, 242, 234, 0.3);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 30px rgba(0, 242, 234, 0.5);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #ff4d6d, #ff2a50);
+            color: #fff;
+        }
+        
+        .btn-gold {
+            background: linear-gradient(135deg, #ffc107, #ff9800);
+            color: #000;
+        }
+        
+        .input-field {
+            width: 100%;
+            padding: 14px 18px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(0,0,0,0.3);
+            color: #fff;
+            font-size: 15px;
+            font-family: inherit;
+            transition: all 0.3s ease;
+        }
+        
+        .input-field:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 15px rgba(0, 242, 234, 0.2);
+        }
+        
+        .tab-btn {
+            padding: 10px 16px;
+            border-radius: 10px;
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: inherit;
+            font-weight: 500;
+        }
+        
+        .tab-btn.active {
+            background: rgba(0, 242, 234, 0.1);
+            color: var(--accent);
+            border-color: rgba(0, 242, 234, 0.3);
+        }
+        
+        .balance-display {
+            font-size: 42px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #00f2ea, #ffc107);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .badge-pending { background: rgba(255, 193, 7, 0.2); color: #ffc107; }
+        .badge-approved { background: rgba(0, 242, 234, 0.2); color: #00f2ea; }
+        .badge-rejected { background: rgba(255, 77, 109, 0.2); color: #ff4d6d; }
+        
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-weight: 500;
+            z-index: 9999;
+            animation: slideUp 0.3s ease;
+        }
+        
+        .toast-success { background: #00f2ea; color: #000; }
+        .toast-error { background: #ff4d6d; color: #fff; }
+        
+        @keyframes slideUp {
+            from { opacity: 0; transform: translate(-50%, 20px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.4s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .scroll-area {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .scroll-area::-webkit-scrollbar { width: 6px; }
+        .scroll-area::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+        .scroll-area::-webkit-scrollbar-thumb { background: rgba(0, 242, 234, 0.3); border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+    <!-- Background -->
+    <div class="bg-animation"></div>
+
+    <!-- Main Container -->
+    <div class="min-h-screen p-4">
+        <div class="max-w-lg mx-auto">
+            
+            <!-- Header -->
+            <header class="text-center py-6">
+                <h1 class="text-2xl font-bold mb-1">
+                    <span class="text-cyan-400">EARN</span> BOT
+                </h1>
+                <p class="text-gray-400 text-sm">টেলিগ্রাম মাইনি অ্যাপ</p>
+            </header>
+
+            <!-- Tabs Navigation -->
+            <div class="glass p-2 flex justify-center gap-2 mb-6 flex-wrap">
+                <button class="tab-btn active" onclick="switchTab('home')">হোম</button>
+                <button class="tab-btn" onclick="switchTab('withdraw')">উইথড্র</button>
+                <button class="tab-btn" onclick="switchTab('gmail')">জিমেইল</button>
+                <button class="tab-btn" onclick="switchTab('history')">ইতিহাস</button>
+                <button class="tab-btn" onclick="switchTab('admin')" id="adminTabBtn" style="display:none;">এডমিন</button>
+            </div>
+
+            <!-- Content Sections -->
+            <div id="content-area">
+                
+                <!-- HOME SECTION -->
+                <div id="home-section" class="fade-in">
+                    <div class="glass-dark p-6 text-center mb-6">
+                        <p class="text-gray-400 text-sm mb-1">আপনার ব্যালেন্স</p>
+                        <div class="balance-display" id="balance-display">0.00</div>
+                        <p class="text-gray-500 text-xs mt-1">টাকা</p>
+                        
+                        <div class="grid grid-cols-3 gap-3 mt-5">
+                            <div class="glass p-3 rounded-xl">
+                                <p class="text-lg font-bold text-cyan-400" id="stat-referral">0</p>
+                                <p class="text-xs text-gray-500">রেফার</p>
+                            </div>
+                            <div class="glass p-3 rounded-xl">
+                                <p class="text-lg font-bold text-pink-400" id="stat-withdraw">0</p>
+                                <p class="text-xs text-gray-500">উইথড্র</p>
+                            </div>
+                            <div class="glass p-3 rounded-xl">
+                                <p class="text-lg font-bold text-yellow-400" id="stat-task">0</p>
+                                <p class="text-xs text-gray-500">টাস্ক</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Referral Section -->
+                    <div class="glass p-5 mb-6">
+                        <h3 class="font-semibold mb-3 flex items-center gap-2">
+                            <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                            রেফার করুন (১ টাকা/রেফার)
+                        </h3>
+                        <div class="flex gap-2 mb-4">
+                            <input type="text" id="ref-link" class="input-field text-sm" readonly>
+                            <button onclick="copyLink()" class="btn btn-primary text-sm whitespace-nowrap">কপি</button>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="shareTg()" class="btn btn-primary flex-1 text-sm">টেলিগ্রামে শেয়ার</button>
+                        </div>
+                    </div>
+
+                    <!-- Daily Tasks -->
+                    <div class="glass p-5">
+                        <h3 class="font-semibold mb-4">দৈনিক টাস্ক</h3>
+                        <div id="tasks-container" class="space-y-3"></div>
+                    </div>
+                </div>
+
+                <!-- WITHDRAW SECTION -->
+                <div id="withdraw-section" class="fade-in hidden">
+                    <div class="glass p-5">
+                        <h3 class="font-semibold mb-4 text-lg">উইথড্র অনুরোধ</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="text-sm text-gray-400 mb-1 block">পেমেন্ট মেথড</label>
+                                <select id="wd-method" class="input-field">
+                                    <option value="bkash">বিকাশ</option>
+                                    <option value="nagad">নগদ</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-sm text-gray-400 mb-1 block">নম্বর</label>
+                                <input type="text" id="wd-number" class="input-field" placeholder="01XXXXXXXXX">
+                            </div>
+                            <div>
+                                <label class="text-sm text-gray-400 mb-1 block">পরিমাণ (মিনিমাম ২০)</label>
+                                <input type="number" id="wd-amount" class="input-field" placeholder="টাকার পরিমাণ">
+                            </div>
+                            <button onclick="requestWithdraw()" class="btn btn-primary w-full">রিকোয়েস্ট পাঠান</button>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-4 text-center">* উইথড্র ২৪ ঘণ্টার মধ্যে প্রসেস হবে</p>
+                    </div>
+                </div>
+
+                <!-- GMAIL SECTION -->
+                <div id="gmail-section" class="fade-in hidden">
+                    <div class="glass p-5">
+                        <h3 class="font-semibold mb-2 text-lg">জিমেইল বিক্রি করুন</h3>
+                        <p class="text-sm text-cyan-400 mb-4">প্রতিটি ভেরিফাইড জিমেইলে ১০ টাকা</p>
+                        
+                        <div class="space-y-4">
+                            <input type="text" id="gm-mail" class="input-field" placeholder="জিমেইল ঠিকানা">
+                            <input type="text" id="gm-pass" class="input-field" placeholder="পাসওয়ার্ড">
+                            <select id="gm-method" class="input-field">
+                                <option value="bkash">বিকাশ নম্বর</option>
+                                <option value="nagad">নগদ নম্বর</option>
+                            </select>
+                            <input type="text" id="gm-number" class="input-field" placeholder="পেমেন্ট নম্বর">
+                            <button onclick="sellGmail()" class="btn btn-gold w-full">জমা দিন</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- HISTORY SECTION -->
+                <div id="history-section" class="fade-in hidden">
+                    <div class="glass p-5">
+                        <h3 class="font-semibold mb-4">আপনার লেনদেন</h3>
+                        <div id="history-container" class="scroll-area space-y-2"></div>
+                    </div>
+                </div>
+
+                <!-- ADMIN SECTION -->
+                <div id="admin-section" class="fade-in hidden">
+                    <div class="glass-dark p-5 mb-4">
+                        <h3 class="font-semibold mb-2 text-cyan-400">এডমিন ড্যাশবোর্ড</h3>
+                        <div class="grid grid-cols-3 gap-3 text-center">
+                            <div class="glass p-3 rounded-lg">
+                                <p class="text-lg font-bold text-pink-400" id="admin-pending-wd">0</p>
+                                <p class="text-xs text-gray-400">পেন্ডিং WD</p>
+                            </div>
+                            <div class="glass p-3 rounded-lg">
+                                <p class="text-lg font-bold text-yellow-400" id="admin-pending-gm">0</p>
+                                <p class="text-xs text-gray-400">পেন্ডিং GM</p>
+                            </div>
+                            <div class="glass p-3 rounded-lg">
+                                <p class="text-lg font-bold text-green-400" id="admin-users">0</p>
+                                <p class="text-xs text-gray-400">ইউজার</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Admin Tabs -->
+                    <div class="flex gap-2 mb-4">
+                        <button class="tab-btn active" onclick="loadAdminRequests('withdraw')">উইথড্র</button>
+                        <button class="tab-btn" onclick="loadAdminRequests('gmail')">জিমেইল</button>
+                    </div>
+
+                    <div id="admin-requests-container" class="space-y-3 scroll-area"></div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="fixed inset-0 bg-black flex items-center justify-center z-50">
+        <div class="text-center">
+            <div class="w-12 h-12 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p class="text-gray-400">লোড হচ্ছে...</p>
+        </div>
+    </div>
+
+    <script>
+        // ================== CONFIGURATION ==================
+        // এখানে আপনার তথ্য দিন
+        const BOT_TOKEN = "8324136233:AAHIWXiyB1IQmr68xFRHfqv58H12LALhnsQ"; // টেলিগ্রাম বট টোকেন
+        const ADMIN_ID = "7832328243"; // আপনার টেলিগ্রাম আইডি (সংখ্যা)
+        
+        // Firebase Configuration (Firebase থেকে পাবেন)
+        const firebaseConfig = {
+          apiKey: "AIzaSyDKaWG1SwJyz8U-JSz6ICmlwYG2oXZ6cdg",
+           authDomain: "taskincome-198b4.firebaseapp.com",
+           projectId: "taskincome-198b4",
+          storageBucket: "taskincome-198b4.firebasestorage.app",
+           messagingSenderId: "148482859285",
+         appId: "1:148482859285:web:7fbba0c390f81ddb81091c"
+        };
+
+        // ================== INITIALIZE ==================
+        let db, userRef, userData = null;
+        let tgUser = null;
+        let isApp = false;
+
+        // Telegram WebApp Init
+        if (window.Telegram && window.Telegram.WebApp) {
+            tgUser = window.Telegram.WebApp.initDataUnsafe.user;
+            window.Telegram.WebApp.expand();
+            isApp = true;
+        }
+
+        // Fallback for testing in browser
+        if (!tgUser) {
+            tgUser = { id: 123456789, first_name: "Test User" };
+            console.log("Test Mode Active");
+        }
+
+        // Initialize Firebase
+        try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.database();
+            initApp();
+        } catch (e) {
+            console.error("Firebase Error", e);
+            document.getElementById('loading-screen').innerHTML = '<p class="text-red-500 p-4">Firebase কনফিগারেশন সঠিক নয়। অনুগ্রহ করে কোডে API কী দিন।</p>';
+        }
+
+        function initApp() {
+            const userId = tgUser.id.toString();
+            userRef = db.ref('users/' + userId);
+
+            // Check if Admin
+            if (userId === ADMIN_ID.toString()) {
+                document.getElementById('adminTabBtn').style.display = 'block';
+            }
+
+            // Listen for data changes
+            userRef.on('value', (snapshot) => {
+                const data = snapshot.val();
+                
+                if (!data) {
+                    // New User Registration
+                    const newUser = {
+                        id: userId,
+                        name: tgUser.first_name || "User",
+                        balance: 0,
+                        referrals: 0,
+                        withdrawTotal: 0,
+                        tasksCompleted: [],
+                        createdAt: Date.now()
+                    };
+                    userRef.set(newUser);
+                    userData = newUser;
+                    
+                    // Check Referral
+                    const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param;
+                    if (startParam && startParam !== userId) {
+                        processReferral(startParam, userId);
+                    }
+                } else {
+                    userData = data;
+                }
+                
+                updateUI();
+                document.getElementById('loading-screen').style.display = 'none';
+            });
+
+            // Set Referral Link
+            const botUsername = "@TaskEarningBD1_bot"; // এখানে আপনার বট ইউজারনেম দিন ( @ ছাড়া )
+            document.getElementById('ref-link').value = `https://t.me/${botUsername}?startapp=${userId}`;
+            
+            loadTasks();
+        }
+
+        // ================== UI UPDATE ==================
+        function updateUI() {
+            if (!userData) return;
+            
+            document.getElementById('balance-display').textContent = userData.balance.toFixed(2);
+            document.getElementById('stat-referral').textContent = userData.referrals || 0;
+            document.getElementById('stat-withdraw').textContent = userData.withdrawTotal || 0;
+            document.getElementById('stat-task').textContent = userData.tasksCompleted ? userData.tasksCompleted.length : 0;
+            
+            loadHistory();
+        }
+
+        // ================== TAB SYSTEM ==================
+        function switchTab(tab) {
+            // Hide all
+            document.querySelectorAll('#content-area > div').forEach(el => el.classList.add('hidden'));
+            
+            // Remove active
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            
+            // Show selected
+            document.getElementById(tab + '-section').classList.remove('hidden');
+            event.target.classList.add('active');
+            
+            if (tab === 'admin') loadAdminRequests('withdraw');
+        }
+
+        // ================== REFERRAL SYSTEM ==================
+        function processReferral(referrerId, newUserId) {
+            const refRef = db.ref('users/' + referrerId);
+            refRef.transaction((data) => {
+                if (data) {
+                    data.balance = (data.balance || 0) + 1;
+                    data.referrals = (data.referrals || 0) + 1;
+                }
+                return data;
+            });
+            
+            // Save history for referrer
+            db.ref('history/' + referrerId).push({
+                type: 'referral',
+                amount: 1,
+                from: newUserId,
+                date: Date.now(),
+                status: 'approved'
+            });
+        }
+
+        function copyLink() {
+            const link = document.getElementById('ref-link').value;
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(link);
+                toast('লিংক কপি হয়েছে!', 'success');
+            }
+        }
+
+        function shareTg() {
+            const link = document.getElementById('ref-link').value;
+            const text = "এই বট দিয়ে আয় করুন! জয়েন করুন: ";
+            const url = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`;
+            if (window.Telegram?.WebApp) {
+                window.Telegram.WebApp.openTelegramLink(url);
+            } else {
+                window.open(url, '_blank');
+            }
+        }
+
+        // ================== TASKS SYSTEM ==================
+        const tasksList = [
+            { id: 1, title: "আমাদের চ্যানেল জয়েন করুন", reward: 2, link: "https://t.me/example" },
+            { id: 2, title: "ভিডিও দেখুন", reward: 2, link: "https://youtube.com" }
+        ];
+
+        function loadTasks() {
+            const container = document.getElementById('tasks-container');
+            const completed = userData?.tasksCompleted || [];
+            
+            container.innerHTML = tasksList.map(task => {
+                const isDone = completed.includes(task.id);
+                return `
+                    <div class="flex items-center justify-between p-3 glass rounded-xl ${isDone ? 'opacity-50' : ''}">
+                        <div>
+                            <p class="font-medium">${task.title}</p>
+                            <p class="text-xs text-cyan-400">+${task.reward} টাকা</p>
+                        </div>
+                        ${isDone 
+                            ? '<span class="badge badge-approved">সম্পন্ন</span>' 
+                            : `<button onclick="doTask(${task.id}, '${task.link}', ${task.reward})" class="btn btn-primary text-xs">করুন</button>`
+                        }
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function doTask(id, link, reward) {
+            window.open(link, '_blank');
+            
+            setTimeout(() => {
+                const completed = userData.tasksCompleted || [];
+                if (!completed.includes(id)) {
+                    completed.push(id);
+                    userRef.update({
+                        tasksCompleted: completed,
+                        balance: userData.balance + reward
+                    });
+                    
+                    db.ref('history/' + userData.id).push({
+                        type: 'task',
+                        amount: reward,
+                        date: Date.now(),
+                        status: 'approved'
+                    });
+                    
+                    toast(`+${reward} টাকা পেয়েছেন!`, 'success');
+                }
+            }, 3000);
+        }
+
+        // ================== WITHDRAW SYSTEM ==================
+        function requestWithdraw() {
+            const method = document.getElementById('wd-method').value;
+            const number = document.getElementById('wd-number').value.trim();
+            const amount = parseFloat(document.getElementById('wd-amount').value);
+            
+            if (!number || number.length < 11) return toast('সঠিক নম্বর দিন', 'error');
+            if (!amount || amount < 20) return toast('সর্বনিম্ন ২০ টাকা', 'error');
+            if (amount > userData.balance) return toast('অপর্যাপ্ত ব্যালেন্স', 'error');
+            
+            // Deduct Balance
+            userRef.update({ balance: userData.balance - amount });
+            
+            // Save Request
+            db.ref('withdraw_requests').push({
+                userId: userData.id,
+                userName: userData.name,
+                method: method,
+                number: number,
+                amount: amount,
+                status: 'pending',
+                date: Date.now()
+            });
+            
+            db.ref('history/' + userData.id).push({
+                type: 'withdraw',
+                amount: amount,
+                method: method,
+                number: number,
+                status: 'pending',
+                date: Date.now()
+            });
+            
+            document.getElementById('wd-number').value = '';
+            document.getElementById('wd-amount').value = '';
+            toast('রিকোয়েস্ট পাঠানো হয়েছে', 'success');
+        }
+
+        // ================== GMAIL SALE ==================
+        function sellGmail() {
+            const gmail = document.getElementById('gm-mail').value.trim();
+            const pass = document.getElementById('gm-pass').value.trim();
+            const method = document.getElementById('gm-method').value;
+            const number = document.getElementById('gm-number').value.trim();
+            
+            if (!gmail || !pass || !number) return toast('সব তথ্য পূরণ করুন', 'error');
+            
+            db.ref('gmail_requests').push({
+                userId: userData.id,
+                userName: userData.name,
+                gmail: gmail,
+                password: pass,
+                method: method,
+                number: number,
+                status: 'pending',
+                date: Date.now()
+            });
+            
+            db.ref('history/' + userData.id).push({
+                type: 'gmail',
+                gmail: gmail,
+                amount: 10,
+                status: 'pending',
+                date: Date.now()
+            });
+            
+            document.getElementById('gm-mail').value = '';
+            document.getElementById('gm-pass').value = '';
+            document.getElementById('gm-number').value = '';
+            toast('জিমেইল জমা হয়েছে', 'success');
+        }
+
+        // ================== HISTORY ==================
+        function loadHistory() {
+            const container = document.getElementById('history-container');
+            db.ref('history/' + userData.id).orderByChild('date').limitToLast(20).on('value', (snap) => {
+                const data = snap.val();
+                if (!data) {
+                    container.innerHTML = '<p class="text-center text-gray-500 py-8">কোনো ইতিহাস নেই</p>';
+                    return;
+                }
+                
+                const items = Object.values(data).reverse();
+                container.innerHTML = items.map(h => {
+                    const dateStr = new Date(h.date).toLocaleDateString('bn-BD');
+                    let title = h.type === 'withdraw' ? 'উইথড্র' : h.type === 'gmail' ? 'জিমেইল' : h.type === 'referral' ? 'রেফারেল' : 'টাস্ক';
+                    let color = h.status === 'approved' ? 'text-green-400' : 'text-yellow-400';
+                    let sign = h.type === 'withdraw' ? '-' : '+';
+                    
+                    return `
+                        <div class="flex justify-between items-center p-3 glass rounded-lg">
+                            <div>
+                                <p class="font-medium text-sm">${title}</p>
+                                <p class="text-xs text-gray-500">${dateStr}</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="${color} font-semibold">${sign}${h.amount || 0}</p>
+                                <span class="badge badge-${h.status}">${h.status === 'approved' ? 'সম্পন্ন' : 'পেন্ডিং'}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            });
+        }
+
+        // ================== ADMIN PANEL ==================
+        function loadAdminRequests(type) {
+            const container = document.getElementById('admin-requests-container');
+            container.innerHTML = '<p class="text-center text-gray-500 py-4">লোড হচ্ছে...</p>';
+            
+            const path = type === 'withdraw' ? 'withdraw_requests' : 'gmail_requests';
+            
+            db.ref(path).orderByChild('status').equalTo('pending').on('value', (snap) => {
+                const data = snap.val();
+                
+                // Update counts
+                if (type === 'withdraw') {
+                    document.getElementById('admin-pending-wd').textContent = data ? Object.keys(data).length : 0;
+                } else {
+                    document.getElementById('admin-pending-gm').textContent = data ? Object.keys(data).length : 0;
+                }
+                
+                db.ref('users').once('value', s => {
+                    document.getElementById('admin-users').textContent = s.exists() ? Object.keys(s.val()).length : 0;
+                });
+                
+                if (!data) {
+                    container.innerHTML = '<p class="text-center text-gray-500 py-8">কোনো পেন্ডিং রিকোয়েস্ট নেই</p>';
+                    return;
+                }
+                
+                const items = Object.entries(data);
+                container.innerHTML = items.map(([key, r]) => `
+                    <div class="glass-dark p-4 rounded-xl mb-3 fade-in">
+                        <div class="flex justify-between items-start mb-3">
+                            <div>
+                                <p class="font-semibold">${r.userName || 'User'}</p>
+                                <p class="text-xs text-gray-500">ID: ${r.userId}</p>
+                            </div>
+                            <span class="badge badge-pending">পেন্ডিং</span>
+                        </div>
+                        <div class="text-sm space-y-1 mb-3 bg-black/20 p-3 rounded-lg">
+                            ${type === 'withdraw' 
+                                ? `<p><span class="text-gray-500">মেথড:</span> ${r.method} - ${r.number}</p>
+                                   <p><span class="text-gray-500">পরিমাণ:</span> <span class="text-cyan-400 font-bold">${r.amount} টাকা</span></p>`
+                                : `<p><span class="text-gray-500">জিমেইল:</span> ${r.gmail}</p>
+                                   <p><span class="text-gray-500">পাস:</span> ${r.password}</p>
+                                   <p><span class="text-gray-500">পেমেন্ট:</span> ${r.method} - ${r.number}</p>`
+                            }
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="approveRequest('${type}', '${key}', '${r.userId}')" class="btn btn-primary flex-1 text-sm">অনুমোদন</button>
+                            <button onclick="rejectRequest('${type}', '${key}')" class="btn btn-danger flex-1 text-sm">বাতিল</button>
+                        </div>
+                    </div>
+                `).join('');
+            });
+        }
+
+        function approveRequest(type, key, userId) {
+            const path = type === 'withdraw' ? 'withdraw_requests' : 'gmail_requests';
+            
+            // Update Request Status
+            db.ref(path + '/' + key).update({ status: 'approved' });
+            
+            // If Gmail, Add Balance
+            if (type === 'gmail') {
+                db.ref('users/' + userId).transaction(d => {
+                    if (d) d.balance = (d.balance || 0) + 10;
+                    return d;
+                });
+                
+                // Update User History
+                db.ref('history/' + userId).orderByChild('date').limitToLast(1).once('value', (snap) => {
+                    snap.forEach(h => {
+                        h.ref.update({ status: 'approved' });
+                    });
+                });
+            }
+            
+            // Update Withdraw History
+            if (type === 'withdraw') {
+                db.ref('history/' + userId).orderByChild('date').limitToLast(1).once('value', (snap) => {
+                    snap.forEach(h => {
+                        h.ref.update({ status: 'approved' });
+                    });
+                });
+            }
+            
+            toast('অনুমোদিত হয়েছে', 'success');
+        }
+
+        function rejectRequest(type, key) {
+            const path = type === 'withdraw' ? 'withdraw_requests' : 'gmail_requests';
+            db.ref(path + '/' + key).update({ status: 'rejected' });
+            toast('বাতিল করা হয়েছে', 'error');
+        }
+
+        // ================== UTILITY ==================
+        function toast(msg, type) {
+            const el = document.createElement('div');
+            el.className = `toast toast-${type}`;
+            el.textContent = msg;
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 2500);
+        }
+    </script>
+</body>
+</html>
